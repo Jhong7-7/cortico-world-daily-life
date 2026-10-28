@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-daily-life",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "private": true,
   "description": "Give the bot a life of its own: a random daily schedule, one written experience per slot, and a monthly review. Zero network, zero API keys.",
