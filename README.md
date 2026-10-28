@@ -1,0 +1,147 @@
+# 每日生活（Daily Life）— Coopanion World
+
+让 bot 有自己的日子：每天一份随机行程，按时段写一段经历，月末整理一次。
+
+*A Cortico World that gives the bot a life of its own: a random daily schedule, one written experience per slot, and a monthly review. Zero network, zero API keys.*
+
+- 每天第一次醒来时，随机抽一份五段式行程，写进工作区；
+- 每个时段开始时，带着「行程 + 一个随机偶然 + 世界设定」推它一次，让它写下刚发生的事；
+- 这些经历会进工作区、进记忆；月底压缩一次，忘掉不重要的；
+- 想分享的时候，用 `share_score` 算一下该不该说——**算出来的是建议，不是命令**。
+
+## 用途
+
+Cortico 的 bot 默认是「被叫醒才说话」：没人找它，它就停在原地。这个 World 补的是**它自己的日子**——有行程、有时段、有遇到的事，聊天时不再只有「回应」，还有「我今天……」
+
+- **给角色一条生活线**：每天五段行程（早晨/中午/下午/晚上/深夜），不是随机报时，而是「今天它打算怎么过」
+- **给对话加由头**：每段经历里带一个偶然（窗外、楼下、隔壁），这些就是它主动开口的素材
+- **给记忆一个来源**：经历写进工作区并记进记忆，月末压缩一次——忘掉不重要的，留下重要的
+- **给设定一个锚**：`my-side.md` 是它的固定世界（房间、窗、楼下），经历只能从这里长出来，不会今天海边明天沙漠
+- **让「想分享」有依据**：分享欲按影响、相关性、情绪、精力、关系算出来，而不是掷骰子
+
+**适合**：想要角色有自己的作息与日常、希望它主动分享生活片段的部署。
+
+**不适合**：只想要一个问答助手的部署；不接受「它有自己的事」这种设定的部署。
+
+**和别的 World 的关系**：它不替代 `life`（生活状态）、`selftalk`（自主发言）、`clock`（时间）。
+`life` 管状态与主动搭话，`selftalk` 管安静时的自说自话，这个 World 管「每天过什么日子」。三者可以同时开，也可以只开这一个。
+
+## 工作原理
+
+World 是一个 60 秒一次的定时器，检查四件事：
+
+1. **行程**：当天还没有行程，且（它今天醒过 或 已经过了 `generateAt`）→ 从每段的选项池里各抽一个，写 `schedule.md`，推一条 `daily-life.schedule` 事件。
+   - 醒着时用 `debounce` 投递（不额外叫醒）；没醒时用 `piggyback`（等它自己醒）
+2. **经历**：当前时间落在某个**已启用**时段内，且这个时段今天还没触发过 → 推一条 `daily-life.experience` 事件，正文带上行程、世界设定、一个随机偶然、写法和分享规则。
+3. **月末整理**：每月最后一天过 `monthlyReviewAt` → 推一条 `daily-life.monthly-review`，让它删掉不重要的、压缩重要的，并处理上个月的原始文件。
+4. **分享**：它自己调 `share_score`，把影响/相关/情绪交给世界，世界结合精力、关系、今日已发条数、冷却与静默时段算出 0–1 的分数。
+
+事件只是提示，**写不写、发不发都由 bot 自己决定**。
+
+工具回执示例：
+
+```
+分享欲 0.81（高）| 建议：可以说，但也可以忍住
+明细：影响 0.45×0.90=0.405, 相关 0.20×0.80=0.160, 情绪波动 0.15×0.80=0.120, 精力 0.10×0.60=0.060, 关系温度 0.10×0.60=0.060
+今天已分享 0/1 条；发出去之后带 sent:true 再调一次，我才能记住
+（这是建议，不是命令。想发就发，不想发也正常。）
+```
+
+## 配置
+
+WebUI → 设置 → **Daily Life**（group id `world:daily-life`）。**改完不用重启**，下一次 60 秒检查就生效；时段格式写错会退回内置默认值。
+
+| 配置键 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `enabled` | 开关 | `false` | 总开关 |
+| `locale` | 字符串 | `zh` | `zh` / `en`，决定事件语言 |
+| `timezone` | 字符串 | `Asia/Shanghai` | IANA 名称 |
+| `generateAt` | 字符串 | `05:30` | 行程兜底生成时刻（不会叫醒） |
+| `monthlyReviewAt` | 字符串 | `23:30` | 月末整理时刻 |
+| `morning` / `noon` / `afternoon` / `evening` / `night` | 字符串 | `07:00-11:00` / `11:00-14:00` / `14:00-18:00` / `18:00-22:00` / `22:00-01:00` | 时段范围，`HH:MM-HH:MM`；深夜可跨天 |
+| `morningEnabled` … `nightEnabled` | 开关 | 全 `true` | 单独关掉某个时段 |
+| `allowPeople` | 开关 | `false` | 经历里能否出现具体的人（只一次性，不常驻） |
+| `allowShare` | 开关 | `true` | 关掉后只记录、不主动发 |
+| `maxSharesPerDay` | 整数 0–10 | `1` | 每天最多分享几条，`0` = 不限 |
+| `shareCooldownMinutes` | 整数 0–720 | `90` | 两条分享的最小间隔，`0` = 不设 |
+| `wImpact` | 数字 0–1 | `0.45` | 权重·对 bot 的影响 |
+| `wRelevance` | 数字 0–1 | `0.20` | 权重·对用户的相关性 |
+| `wSwing` | 数字 0–1 | `0.15` | 权重·情绪波动 |
+| `wEnergy` | 数字 0–1 | `0.10` | 权重·精力 |
+| `wAffinity` | 数字 0–1 | `0.10` | 权重·关系温度 |
+| `sharePenalty` | 数字 0–1 | `0.10` | 当天已分享过时扣的分 |
+| `quietFrom` / `quietTo` | 整数 0–23 | `22` / `7` | 静默时段，分享欲硬封顶为低 |
+| `highThreshold` / `midThreshold` | 数字 0–1 | `0.65` / `0.35` | 三档阈值 |
+| `deleteRawAfterReview` | 开关 | `false` | 开：删掉上个月原始文件；关：移进 `archive/` |
+| `workspaceSubdir` | 字符串 | `life` | 文件放 `workspace/<子目录>/`，留空 = 根目录 |
+| `poolsFile` | 字符串 | 空 | 自定义池子 JSON 的路径（绝对路径或相对 bot 目录） |
+
+权重**不要求加起来等于 1**，算的是原样加权和；某个权重设成 0 就表示完全忽略该因素。
+
+## 自定义池子
+
+默认池子在 `src/pools.default.json`，覆盖它不用改包：把 `poolsFile` 指向你自己的 JSON，按 `key` 合并（没写的字段沿用默认）。
+
+```json
+{
+  "slots": [
+    { "key": "morning", "options": ["浇花", "煮咖啡"], "seeds": ["水壶响了", "楼下在扫地"] }
+  ]
+}
+```
+
+字段：`key`、`label`/`label_en`、`from`/`to`、`options`/`options_en`、`seeds`/`seeds_en`。
+
+## 安装到本机的 Coopanion
+
+1. 把本目录复制到 `<Coopanion>/data/extensions/local/cortico-world-daily-life`
+2. 在 `data/extensions/package.json` 的 `dependencies` 里加：
+   ```json
+   "cortico-world-daily-life": "link:D:/path/to/data/extensions/local/cortico-world-daily-life"
+   ```
+3. 在 `data/extensions/node_modules/` 下建一个指向它的目录链接（Windows 用 `mklink /J`，或用 pnpm 重新安装）
+4. 在 bot 的 `config.json` 里加（或直接重启后在面板里改）：
+   ```json
+   "worlds": {
+     "daily-life": { "enabled": true, "timezone": "Asia/Shanghai" }
+   }
+   ```
+5. 重启核心（`POST /api/run/restart`），确认启动日志里有 `World 已启动: daily-life`
+
+## 卸载
+
+1. 面板里关掉 `enabled`，或把 `config.json` 里的 `worlds.daily-life` 删掉
+2. 删掉 `data/extensions/node_modules/cortico-world-daily-life` 链接、`data/extensions/local/` 里的目录，以及 `package.json` 里的那条依赖
+3. 想一并清掉数据：删 `workspace/<子目录>/`（`schedule.md`、`my-side.md`、`experiences-*.md`）和 `data/daily-life/`
+
+卸载不会自动删任何文件——**留下还是清掉由你决定**。
+
+## 注意
+
+- **它会唤醒 bot**：每天行程 1 次 + 每个启用的时段 1 次（默认 5 次）+ 每月整理 1 次。这些唤醒会产生模型调用，这是唯一成本。
+- **经历是生成的，不是事实**：它写的是自己这边的日子。被认真追问时，回答口径应由人格文件决定，本 World 不替它编造用户的现实。
+- **不做决定**：`share_score` 只给分数和档位；发不发、写不写都由 bot 自己判断。
+- **不联网、不调模型**：没有 API key、没有遥测，所有数据都在本机。
+
+## 已知限制
+
+- 跨天时段（如 22:00–01:00）在 00:00 之后不会补触发；如果 bot 整晚离线，这一段经历会缺失
+- 月末整理依赖 bot 自己读写文件；本 World 不代它删除或压缩
+- 状态文件是 `data/daily-life/state.json`，不支持多部署共享
+- 行程一旦生成本日不再变化；改时段只影响还没触发的时段
+
+## 开发
+
+```bash
+node test/run.mjs     # 纯函数与配置组测试
+```
+
+发布前建议在 Cortico 仓库跑 `pnpm describe:extension` 与 `pnpm check:extension`，确认 `describe.json` 与默认值一致。
+
+## 版本
+
+`0.1.0`
+
+## 许可
+
+MIT
