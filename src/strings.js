@@ -6,6 +6,8 @@ const zh = {
 
   expTitle: (label, from, to) => `【${label} · ${from}–${to}】`,
   expActivity: (a) => `今天的行程：${a}`,
+  expPlace: (p) => `你现在在：${p}`,
+  expPlaceRule: (p) => `- 就在「${p}」这一带写，别去设定里没写过的地方（想添新地方，先写进 \`my-side.md\`）`,
   expWorld: (w) => `你这边：${w}`,
   expSeed: (s) => `这次的偶然：${s}`,
   expAsk: '写两三句这个时段发生的事，然后：',
@@ -63,6 +65,8 @@ const en = {
 
   expTitle: (label, from, to) => `[${label} · ${from}–${to}]`,
   expActivity: (a) => `Today's plan: ${a}`,
+  expPlace: (p) => `You are at: ${p}`,
+  expPlaceRule: (p) => `- stay around "${p}"; do not go to places the setting does not mention (to add one, write it into \`my-side.md\` first)`,
   expWorld: (w) => `Your side: ${w}`,
   expSeed: (s) => `The random bit: ${s}`,
   expAsk: 'Write two or three sentences about what happened in this slot, then:',
