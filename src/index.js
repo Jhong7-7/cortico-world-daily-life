@@ -65,6 +65,8 @@ const DEFAULTS = {
   workspaceSubdir: 'life',
   /** Optional path to a custom pools JSON (absolute, or relative to the bot directory). */
   poolsFile: '',
+  /** Owner injections: one world event per line; each new line is delivered once. */
+  inject: '',
 };
 
 const SLOT_KEYS = ['morning', 'noon', 'afternoon', 'evening', 'night'];
@@ -161,7 +163,7 @@ class DailyLifeWorld {
     this.host = null;
     this.timer = null;
     this.busy = false;
-    this.state = { date: '', picks: [], fired: [], lastShareDate: '', lastShareTs: '', lastReview: '', shares: [], history: [] };
+    this.state = { date: '', picks: [], fired: [], lastShareDate: '', lastShareTs: '', lastReview: '', shares: [], history: [], injected: [] };
     this.cfgCache = { mtime: -1, section: null };
     this.load();
   }
@@ -199,6 +201,7 @@ class DailyLifeWorld {
           lastReview: String(o.lastReview ?? ''),
           shares: Array.isArray(o.shares) ? o.shares.slice(-30) : [],
           history: Array.isArray(o.history) ? o.history.slice(-7) : [],
+          injected: Array.isArray(o.injected) ? o.injected.slice(-100) : [],
         };
         return;
       } catch { /* try next */ }
@@ -363,6 +366,11 @@ class DailyLifeWorld {
     ].join('\n');
   }
 
+  injectText(lines) {
+    const t = this.#strings();
+    return [t.injectTitle, ...lines.map((l) => `- ${l}`), t.injectHint].join('\n');
+  }
+
   reviewText(now) {
     const t = this.#strings();
     const prev = prevMonthKey(now.ym);
@@ -487,6 +495,19 @@ class DailyLifeWorld {
         }
       }
 
+      // Owner injections: one line each, delivered once, merged into a single event.
+      const fresh = asText(this.#get('inject'))
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .filter((line) => !st.injected.includes(line))
+        .slice(0, 10);
+      if (fresh.length) {
+        st.injected = [...st.injected, ...fresh].slice(-100);
+        this.save();
+        await this.push('daily-life.inject', this.injectText(fresh), 'debounce');
+      }
+
       const reviewAt = parseHHMM(this.#get('monthlyReviewAt')) ?? 1410;
       if (now.isLastDay && now.minutes >= reviewAt && st.lastReview !== now.ym) {
         st.lastReview = now.ym;
@@ -575,6 +596,10 @@ class DailyLifeWorld {
             [`${P}deleteRawAfterReview`]: bool('Delete raw logs after review', 'Off: move the previous month into archive/ instead of deleting.'),
             [`${P}workspaceSubdir`]: { type: 'string', title: 'Workspace subdirectory', description: 'Where the generated files go, e.g. life. Empty = workspace root.', 'x-hot': false },
             [`${P}poolsFile`]: { type: 'string', title: 'Custom pools file', description: 'Optional path to a pools JSON (absolute, or relative to the bot directory).', 'x-hot': false },
+            [`${P}inject`]: {
+              type: 'string', title: 'Put something into her world', 'x-hot': true,
+              description: 'One entry per line, e.g. "bought her a small succulent". Each new line is delivered once as a world event; old lines can stay or be deleted.',
+            },
           },
         },
       }],
@@ -612,6 +637,10 @@ export const definition = {
       {
         type: 'daily-life.monthly-review',
         description: { zh: '每月最后一天：整理经历，忘掉不重要的，压缩重要的。', en: 'Month end: review, forget the unimportant, compress the important.' },
+      },
+      {
+        type: 'daily-life.inject',
+        description: { zh: '主人往她的世界里投放了新东西（买东西、天气变化、新邻居等）。', en: 'The owner put something new into her world (a gift, weather, a new neighbour).' },
       },
     ],
   },
