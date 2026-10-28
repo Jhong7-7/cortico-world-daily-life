@@ -1,0 +1,34 @@
+{
+  "tools": [
+    {
+      "name": "share_score",
+      "summary": {
+        "zh": "算分享欲：结合影响、相关性、情绪与当前状态给出 0–1 的分数和档位，结果是建议不是命令。",
+        "en": "Score the urge to share from impact, relevance and emotion; the result is advice, not a command."
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "daily-life.schedule",
+      "description": {
+        "zh": "当天第一次醒来时：一份随机生成的当日行程。",
+        "en": "First wake of the day: a randomly generated schedule."
+      }
+    },
+    {
+      "type": "daily-life.experience",
+      "description": {
+        "zh": "每个时段开始：带着行程、随机偶然和世界设定，让 bot 写一段刚发生的经历。",
+        "en": "Each slot begins: a prompt to write what just happened, with the schedule, a random seed and the world setting."
+      }
+    },
+    {
+      "type": "daily-life.monthly-review",
+      "description": {
+        "zh": "每月最后一天：整理一个月的经历，忘掉不重要的，压缩重要的。",
+        "en": "Last day of the month: review, forget the unimportant, compress the important."
+      }
+    }
+  ]
+}
