@@ -72,14 +72,51 @@ const DEFAULTS = {
 const SLOT_KEYS = ['morning', 'noon', 'afternoon', 'evening', 'night'];
 const DEFAULT_POOLS = JSON.parse(readFileSync(new URL('./pools.default.json', import.meta.url), 'utf8'));
 
-const WORLD_FILE = `# My side
+const PLACES_HEADINGS = ['## 我去过的地方', '## Places I have been'];
+const DEFAULT_PLACES = {
+  zh: [
+    { name: '我的房间', desc: '二楼，朝南' },
+    { name: '楼下', desc: '一条街，有便利店' },
+    { name: '街角', desc: '小公园，几张长椅' },
+  ],
+  en: [
+    { name: 'my room', desc: 'second floor, facing south' },
+    { name: 'downstairs', desc: 'a street with a convenience store' },
+    { name: 'the corner', desc: 'a small park with a few benches' },
+  ],
+};
+
+function worldFile(locale) {
+  const zh = locale !== 'en';
+  const body = zh
+    ? `# 我这边
+
+- 房间：朝南，一扇窗，窗台上半杯水
+- 楼下：一条街，白天有车，晚上很静
+- 天气：入秋了，早晚凉
+- 隔壁：偶尔有电视声
+- 窗台：养了一盆不知道名字的绿植
+
+## 我去过的地方
+- 我的房间：二楼，朝南
+- 楼下：一条街，有便利店
+- 街角：小公园，几张长椅
+`
+    : `# My side
 
 - Room: facing south, one window, half a glass of water on the sill
 - Downstairs: a street, cars by day, quiet at night
 - Weather: autumn, chilly mornings and evenings
 - Next door: a TV now and then
 - Windowsill: a houseplant I never named
+
+## Places I have been
+- my room: second floor, facing south
+- downstairs: a street with a convenience store
+- the corner: a small park with a few benches
 `;
+  return body;
+}
 
 function asText(v) { return typeof v === 'string' ? v.trim() : ''; }
 function clamp(n, lo, hi) { const x = Number(n); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; }
@@ -251,7 +288,8 @@ class DailyLifeWorld {
     const label = en ? (slot.label_en || slot.label) : slot.label;
     const options = (en ? slot.options_en : slot.options) || slot.options || [];
     const seeds = (en ? slot.seeds_en : slot.seeds) || slot.seeds || [];
-    return { label, options, seeds };
+    const outOptions = (en ? slot.outOptions_en : slot.outOptions) || slot.outOptions || [];
+    return { label, options, seeds, outOptions };
   }
 
   /** Enabled slots with their configured time ranges. */
@@ -261,8 +299,12 @@ class DailyLifeWorld {
       .filter((s) => this.#get(`${s.key}Enabled`) !== false)
       .map((slot) => {
         const r = parseRange(this.#get(slot.key));
-        const { label, options, seeds } = this.#localized(slot, en);
-        return { key: slot.key, label, options, seeds, from: r?.from ?? slot.from, to: r?.to ?? slot.to };
+        const { label, options, seeds, outOptions } = this.#localized(slot, en);
+        return {
+          key: slot.key, label, options, seeds, outOptions,
+          doorChance: Number(slot.doorChance) || 0,
+          from: r?.from ?? slot.from, to: r?.to ?? slot.to,
+        };
       });
   }
 
@@ -272,25 +314,66 @@ class DailyLifeWorld {
   }
 
   pick() {
+    const places = this.readPlaces();
+    const room = places[0]?.name ?? (asText(this.#get('locale')) === 'en' ? 'my room' : '我的房间');
+    const outside = places.slice(1);
     return this.slotDefs().map((slot) => {
+      if (outside.length && Math.random() < slot.doorChance) {
+        const pool = slot.outOptions.length ? slot.outOptions : [room];
+        const activity = pool[Math.floor(Math.random() * pool.length)];
+        const place = outside[Math.floor(Math.random() * outside.length)].name;
+        return { key: slot.key, label: slot.label, from: slot.from, to: slot.to, activity, place, out: true };
+      }
       const options = slot.options.length ? slot.options : ['…'];
       let choice = options[Math.floor(Math.random() * options.length)];
       if (options.length > 1 && choice === this.#prevPick(slot.key)) {
         const rest = options.filter((o) => o !== choice);
         choice = rest[Math.floor(Math.random() * rest.length)];
       }
-      return { key: slot.key, label: slot.label, from: slot.from, to: slot.to, activity: choice };
+      return { key: slot.key, label: slot.label, from: slot.from, to: slot.to, activity: choice, place: room };
     });
   }
 
   ensureWorldFile() {
     try {
       const p = this.#ws('my-side.md');
+      const en = asText(this.#get('locale')) === 'en';
       if (!existsSync(p)) {
         mkdirSync(dirname(p), { recursive: true });
-        writeFileSync(p, WORLD_FILE, 'utf8');
+        writeFileSync(p, worldFile(en ? 'en' : 'zh'), 'utf8');
+        return;
+      }
+      const raw = readFileSync(p, 'utf8');
+      if (!PLACES_HEADINGS.some((h) => raw.includes(h))) {
+        const heading = en ? PLACES_HEADINGS[1] : PLACES_HEADINGS[0];
+        const list = (en ? DEFAULT_PLACES.en : DEFAULT_PLACES.zh)
+          .map((x) => `- ${x.name}：${x.desc}`).join('\n');
+        writeFileSync(p, `${raw.replace(/\s*$/, '')}\n\n${heading}\n${list}\n`, 'utf8');
       }
     } catch { /* ignore */ }
+  }
+
+  /** Places she has been to; falls back to the locale defaults. */
+  readPlaces() {
+    const en = asText(this.#get('locale')) === 'en';
+    try {
+      const raw = readFileSync(this.#ws('my-side.md'), 'utf8');
+      const heading = PLACES_HEADINGS.find((h) => raw.includes(h));
+      if (!heading) return en ? DEFAULT_PLACES.en : DEFAULT_PLACES.zh;
+      const body = raw.slice(raw.indexOf(heading) + heading.length);
+      const stop = body.search(/\n##\s/);
+      const section = stop < 0 ? body : body.slice(0, stop);
+      const list = section.split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('-'))
+        .map((l) => l.replace(/^-\s*/, ''))
+        .map((l) => {
+          const m = /^(.+?)[：:]\s*(.*)$/.exec(l);
+          return m ? { name: m[1].trim(), desc: m[2].trim() } : { name: l, desc: '' };
+        })
+        .filter((x) => x.name);
+      return list.length ? list : (en ? DEFAULT_PLACES.en : DEFAULT_PLACES.zh);
+    } catch { return en ? DEFAULT_PLACES.en : DEFAULT_PLACES.zh; }
   }
 
   readWorldSetting() {
@@ -303,7 +386,7 @@ class DailyLifeWorld {
 
   writeSchedule(md, picks) {
     const t = this.#strings();
-    const lines = picks.map((p) => `- **${p.label}** ${p.from}–${p.to} | ${p.activity}`).join('\n');
+    const lines = picks.map((p) => `- **${p.label}** ${p.from}–${p.to} | ${p.activity}${p.out ? ` (${p.place})` : ''}`).join('\n');
     const body = `${t.scheduleHeader(md)}\n\n${lines}\n\n${t.scheduleFooter}\n`;
     try {
       const p = this.#ws('schedule.md');
@@ -342,13 +425,15 @@ class DailyLifeWorld {
 
   scheduleText(now, picks) {
     const t = this.#strings();
-    const lines = picks.map((p) => `${p.label} ${p.from}–${p.to} | ${p.activity}`).join('\n');
+    const lines = picks.map((p) => `${p.label} ${p.from}–${p.to} | ${p.activity}${p.out ? ` (${p.place})` : ''}`).join('\n');
     return `${t.scheduleHeader(now.md)}\n${lines}\n${t.scheduleFooter}`;
   }
 
   experienceText(now, slot, picks) {
     const t = this.#strings();
-    const activity = picks.find((p) => p.key === slot.key)?.activity ?? '—';
+    const picked = picks.find((p) => p.key === slot.key);
+    const activity = picked?.activity ?? '—';
+    const place = picked?.place ?? (asText(this.#get('locale')) === 'en' ? 'my room' : '我的房间');
     const seed = slot.seeds.length ? slot.seeds[Math.floor(Math.random() * slot.seeds.length)] : 'nothing special';
     const file = this.#rel(`experiences-${now.ym}.md`);
     const people = this.#get('allowPeople') === true ? t.expPeopleOn : t.expPeopleOff;
@@ -356,10 +441,12 @@ class DailyLifeWorld {
     return [
       t.expTitle(slot.label, slot.from, slot.to),
       t.expActivity(activity),
+      t.expPlace(place),
       t.expWorld(this.readWorldSetting()),
       t.expSeed(seed),
       t.expAsk,
       t.expWrite(file),
+      t.expPlaceRule(place),
       t.expStay,
       people,
       share,
