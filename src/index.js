@@ -65,6 +65,8 @@ const DEFAULTS = {
   workspaceSubdir: 'life',
   /** Optional path to a custom pools JSON (absolute, or relative to the bot directory). */
   poolsFile: '',
+  /** Plain-text activity overrides: 「早晨：浇花|煮咖啡」 per line; overrides the pools for that slot. */
+  activities: '',
   /** Owner injections: one world event per line; each new line is delivered once. */
   inject: '',
 };
@@ -85,6 +87,30 @@ const DEFAULT_PLACES = {
     { name: 'the corner', desc: 'a small park with a few benches' },
   ],
 };
+
+/** Merge plain-text activity overrides (「早晨：A|B」) into a pools object. */
+function applyActivityText(pools, text) {
+  const clone = JSON.parse(JSON.stringify(pools));
+  const byName = new Map();
+  for (const s of clone.slots) {
+    byName.set(s.key, s);
+    if (s.label) byName.set(s.label, s);
+    if (s.label_en) byName.set(s.label_en, s);
+  }
+  for (const raw of String(text).split(/\r?\n/)) {
+    const m = /^[-*\s]*(.+?)[：:]\s*(.+)$/.exec(raw.trim());
+    if (!m) continue;
+    const head = m[1].trim();
+    const out = /(出门|外出|out)/i.test(head);
+    const name = head.replace(/[（(]?\s*(出门|外出|out)\s*[）)]?/ig, '').trim();
+    const slot = byName.get(name);
+    if (!slot) continue;
+    const list = m[2].split(/[|｜、,，]/).map((x) => x.trim()).filter(Boolean);
+    if (!list.length) continue;
+    if (out) slot.outOptions = list; else slot.options = list;
+  }
+  return clone;
+}
 
 function worldFile(locale) {
   const zh = locale !== 'en';
@@ -267,21 +293,26 @@ class DailyLifeWorld {
 
   #get(k) { const v = this.#section()[k]; return v === undefined || v === null ? this.#raw(k) : v; }
 
-  /** Default pools, optionally overridden by a custom pools file (merged per slot key). */
+  /** Base pools (default or poolsFile) then plain-text activity overrides. */
   #pools() {
+    let base = DEFAULT_POOLS;
     const file = asText(this.#get('poolsFile'));
-    if (!file) return DEFAULT_POOLS;
-    try {
-      const p = isAbsolute(file) ? file : join(this.botDir, file);
-      const raw = JSON.parse(readFileSync(p, 'utf8'));
-      if (!Array.isArray(raw?.slots)) return DEFAULT_POOLS;
-      return {
-        slots: DEFAULT_POOLS.slots.map((d) => {
-          const given = raw.slots.find((s) => s && s.key === d.key) ?? {};
-          return { ...d, ...given };
-        }),
-      };
-    } catch { return DEFAULT_POOLS; }
+    if (file) {
+      try {
+        const p = isAbsolute(file) ? file : join(this.botDir, file);
+        const raw = JSON.parse(readFileSync(p, 'utf8'));
+        if (Array.isArray(raw?.slots)) {
+          base = {
+            slots: DEFAULT_POOLS.slots.map((d) => {
+              const given = raw.slots.find((x) => x && x.key === d.key) ?? {};
+              return { ...d, ...given };
+            }),
+          };
+        }
+      } catch { /* keep defaults */ }
+    }
+    const text = asText(this.#get('activities'));
+    return text ? applyActivityText(base, text) : base;
   }
 
   #localized(slot, en) {
@@ -683,6 +714,10 @@ class DailyLifeWorld {
 
             [`${P}deleteRawAfterReview`]: bool('Delete raw logs after review', 'Off: move the previous month into archive/ instead of deleting.'),
             [`${P}workspaceSubdir`]: { type: 'string', title: 'Workspace subdirectory', description: 'Where the generated files go, e.g. life. Empty = workspace root.', 'x-hot': false },
+            [`${P}activities`]: {
+              type: 'string', title: 'Activity options (plain text)', 'x-hot': true,
+              description: 'One slot per line: 「早晨：浇花|煮咖啡」. Add (出门)/(out) for the going-out list. Separators: | 、 ,',
+            },
             [`${P}poolsFile`]: { type: 'string', title: 'Custom pools file', description: 'Optional path to a pools JSON (absolute, or relative to the bot directory).', 'x-hot': false },
             [`${P}inject`]: {
               type: 'string', title: 'Put something into her world', 'x-hot': true,
