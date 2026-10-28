@@ -24,6 +24,11 @@ const zh = {
   reviewArchive: (f) => `3. 如果还有 \`${f}\`，把它移进 \`archive/\`（不删，留作回溯）`,
   reviewNote: '（分享欲分数低于 0.35 的那些，基本都可以忘。）',
 
+  injectTitle: '【主人往你的世界里放了点什么】',
+  injectHint: '这是他从外面放进来的。你可以决定它们怎么进你的日子：\n'
+    + '- 想记住就把变化写进 `my-side.md`（一次只添一样，别一次改太多）\n'
+    + '- 想说话就跟他说一句，不想说也正常',
+
   shareHead: (s, level) => `分享欲 ${s}（${level}）`,
   advise: '建议：',
   advHigh: '可以说，但也可以忍住',
@@ -75,6 +80,11 @@ const en = {
   reviewDelete: (f) => `3. if \`${f}\` is still there, it was compressed last month; delete it (that is what forgetting means)`,
   reviewArchive: (f) => `3. if \`${f}\` is still there, move it into \`archive/\` instead of deleting it`,
   reviewNote: '(Anything scored below 0.35 can usually be forgotten.)',
+
+  injectTitle: '[The owner put something into your world]',
+  injectHint: 'It came from outside. You decide how it enters your days:\n'
+    + '- if you want to keep it, write the change into `my-side.md` (one thing at a time)\n'
+    + '- say something if you feel like it; staying quiet is fine too',
 
   shareHead: (s, level) => `Urge to share ${s} (${level})`,
   advise: 'Advice: ',
