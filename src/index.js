@@ -379,8 +379,10 @@ class DailyLifeWorld {
   readWorldSetting() {
     try {
       const raw = readFileSync(this.#ws('my-side.md'), 'utf8');
-      const body = raw.replace(/^#[^\n]*\n/, '').replace(/\n+/g, '; ').replace(/^[;\s]+/, '').trim();
-      return body.slice(0, 400);
+      const cut = PLACES_HEADINGS.map((h) => raw.indexOf(h)).filter((i) => i >= 0);
+      const head = cut.length ? raw.slice(0, Math.min(...cut)) : raw;
+      const body = head.replace(/^#[^\n]*\n/, '').replace(/\n+/g, '; ').replace(/^[;\s]+/, '').trim();
+      return body.slice(0, 240);
     } catch { return '(no setting written yet)'; }
   }
 
@@ -432,22 +434,21 @@ class DailyLifeWorld {
   experienceText(now, slot, picks) {
     const t = this.#strings();
     const picked = picks.find((p) => p.key === slot.key);
-    const activity = picked?.activity ?? '—';
     const place = picked?.place ?? (asText(this.#get('locale')) === 'en' ? 'my room' : '我的房间');
-    const seed = slot.seeds.length ? slot.seeds[Math.floor(Math.random() * slot.seeds.length)] : 'nothing special';
+    const pool = this.#get('allowPeople') === true ? [...t.directions, t.directionPeople] : t.directions;
+    const direction = pool[Math.floor(Math.random() * pool.length)];
     const file = this.#rel(`experiences-${now.ym}.md`);
     const people = this.#get('allowPeople') === true ? t.expPeopleOn : t.expPeopleOff;
     const share = this.#get('allowShare') === false ? t.expShareOff : t.expShareOn;
     return [
       t.expTitle(slot.label, slot.from, slot.to),
-      t.expActivity(activity),
       t.expPlace(place),
+      t.expDirection(direction),
       t.expWorld(this.readWorldSetting()),
-      t.expSeed(seed),
       t.expAsk,
       t.expWrite(file),
       t.expPlaceRule(place),
-      t.expStay,
+      t.expDirectionRule(direction),
       people,
       share,
     ].join('\n');
