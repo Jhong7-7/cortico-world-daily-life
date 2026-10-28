@@ -105,7 +105,7 @@ const outPicks = wp.pick();
 Math.random = realRandom;
 check('四个时段出门（深夜除外）', outPicks.filter((p) => p.out).length === 4, outPicks.map((p) => `${p.key}:${p.out ? 'out' : 'in'}`).join(' '));
 check('出门地点不是房间', outPicks.filter((p) => p.out).every((p) => p.place !== places[0].name));
-check('经历文案含地点', wp.experienceText({ ym: '2026-10' }, wp.slotDefs()[0], outPicks).includes('你现在在：'));
+check('经历文案含地点', wp.experienceText({ ym: '2026-10' }, wp.slotDefs()[0], outPicks).includes('你在：'));
 
 // 配置组
 const ui = w.webUi();
