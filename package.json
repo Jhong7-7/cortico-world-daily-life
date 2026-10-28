@@ -1,0 +1,22 @@
+{
+  "name": "cortico-world-daily-life",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Give the bot a life of its own: a random daily schedule, one written experience per slot, and a monthly review. Zero network, zero API keys.",
+  "main": "./src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "engines": { "node": ">=22" },
+  "keywords": ["cortico", "world", "companion", "roleplay", "schedule", "daily-life", "persona"],
+  "license": "MIT",
+  "files": ["src", "describe.json", "README.md", "CHANGELOG.md", "LICENSE"],
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "cortico": {
+    "kind": "world",
+    "api": 6,
+    "displayName": "Daily Life",
+    "describe": "describe.json"
+  }
+}
