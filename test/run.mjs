@@ -107,13 +107,24 @@ check('四个时段出门（深夜除外）', outPicks.filter((p) => p.out).leng
 check('出门地点不是房间', outPicks.filter((p) => p.out).every((p) => p.place !== places[0].name));
 check('经历文案含地点', wp.experienceText({ ym: '2026-10' }, wp.slotDefs()[0], outPicks).includes('你在：'));
 
+// 纯文本行程覆盖
+const actTmp = mkdtempSync(join(os.tmpdir(), 'daily-life-act-'));
+const wa = mod.definition.create({
+  cfg: { enabled: true, activities: '早晨：浇花|煮咖啡\n下午(出门)：去邮局|逛超市' },
+  botDir: actTmp, dataDir: actTmp,
+});
+const ad = wa.slotDefs();
+check('文本覆盖早晨选项', ad[0].options.join('/') === '浇花/煮咖啡', ad[0].options.join('/'));
+check('文本覆盖出门选项', ad[2].outOptions.join('/') === '去邮局/逛超市', ad[2].outOptions.join('/'));
+check('未写的时段沿用默认', ad[1].options.length === 4, String(ad[1].options.length));
+
 // 配置组
 const ui = w.webUi();
 const group = ui.config?.[0];
 const keys = Object.keys(group.schema.properties).map((p) => p.replace('worlds.daily-life.', ''));
 const missing = keys.filter((k) => !(k in d));
 check('owner', group.owner === 'world:daily-life');
-check('字段 33 个', keys.length === 33, `${keys.length}`);
+check('字段 34 个', keys.length === 34, `${keys.length}`);
 check('全部有默认值', missing.length === 0, missing.join(','));
 
 console.log(fail === 0 ? 'ALL OK' : `FAILED ${fail}`);
