@@ -68,13 +68,37 @@ check('写入 workspace/life', existsSync(join(tmp, 'workspace', 'life', 'schedu
 sub.save();
 check('状态在 data/daily-life', existsSync(join(tmp, 'daily-life', 'state.json')));
 
+// 投放
+const injTmp = mkdtempSync(join(os.tmpdir(), 'daily-life-inj-'));
+const injEvents = [];
+const injHost = { pushEvent: async (e) => injEvents.push({ type: e.type, text: e.text }), store: { range: async () => [] } };
+const wi = mod.definition.create({
+  cfg: { enabled: true, timezone: 'Asia/Shanghai', inject: '一盆小多肉\n楼下搬来新邻居' },
+  botDir: injTmp, dataDir: injTmp,
+});
+await wi.start(injHost);
+wi.timer && clearInterval(wi.timer);
+await new Promise((r) => setTimeout(r, 50));
+await wi.tick();
+const inj = injEvents.filter((e) => e.type === 'daily-life.inject');
+check('投放一次', inj.length === 1, `${inj.length}`);
+check('多行合并', inj[0].text.includes('小多肉') && inj[0].text.includes('新邻居'));
+await wi.tick();
+check('不重复投放', injEvents.filter((e) => e.type === 'daily-life.inject').length === 1);
+writeFileSync(join(injTmp, 'config.json'), JSON.stringify({
+  worlds: { 'daily-life': { enabled: true, inject: '一盆小多肉\n楼下搬来新邻居\n今天降温了' } },
+}), 'utf8');
+await wi.tick();
+const inj2 = injEvents.filter((e) => e.type === 'daily-life.inject');
+check('新增行再投放', inj2.length === 2 && inj2[1].text.includes('降温') && !inj2[1].text.includes('小多肉'));
+
 // 配置组
 const ui = w.webUi();
 const group = ui.config?.[0];
 const keys = Object.keys(group.schema.properties).map((p) => p.replace('worlds.daily-life.', ''));
 const missing = keys.filter((k) => !(k in d));
 check('owner', group.owner === 'world:daily-life');
-check('字段 32 个', keys.length === 32, `${keys.length}`);
+check('字段 33 个', keys.length === 33, `${keys.length}`);
 check('全部有默认值', missing.length === 0, missing.join(','));
 
 console.log(fail === 0 ? 'ALL OK' : `FAILED ${fail}`);
