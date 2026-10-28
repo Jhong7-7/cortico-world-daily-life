@@ -1,6 +1,6 @@
-import { pathToFileURL } from 'node:url';
+﻿import { pathToFileURL } from 'node:url';
 import os from 'node:os';
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const base = 'D:/dsh workplace/patches/daily-life-community/cortico-world-daily-life/src/index.js';
@@ -92,6 +92,21 @@ await wi.tick();
 const inj2 = injEvents.filter((e) => e.type === 'daily-life.inject');
 check('新增行再投放', inj2.length === 2 && inj2[1].text.includes('降温') && !inj2[1].text.includes('小多肉'));
 
+// 地点
+const placeTmp = mkdtempSync(join(os.tmpdir(), 'daily-life-places-'));
+const wp = mod.definition.create({ cfg: { enabled: true, timezone: 'Asia/Shanghai' }, botDir: placeTmp, dataDir: placeTmp });
+wp.ensureWorldFile();
+check('设定文件含地点节', readFileSync(join(placeTmp, 'workspace', 'life', 'my-side.md'), 'utf8').includes('我去过的地方'));
+const places = wp.readPlaces();
+check('读出 3 个地点', places.length === 3, places.map((x) => x.name).join('/'));
+const realRandom = Math.random;
+Math.random = () => 0.001;
+const outPicks = wp.pick();
+Math.random = realRandom;
+check('四个时段出门（深夜除外）', outPicks.filter((p) => p.out).length === 4, outPicks.map((p) => `${p.key}:${p.out ? 'out' : 'in'}`).join(' '));
+check('出门地点不是房间', outPicks.filter((p) => p.out).every((p) => p.place !== places[0].name));
+check('经历文案含地点', wp.experienceText({ ym: '2026-10' }, wp.slotDefs()[0], outPicks).includes('你现在在：'));
+
 // 配置组
 const ui = w.webUi();
 const group = ui.config?.[0];
@@ -103,3 +118,5 @@ check('全部有默认值', missing.length === 0, missing.join(','));
 
 console.log(fail === 0 ? 'ALL OK' : `FAILED ${fail}`);
 process.exit(fail === 0 ? 0 : 1);
+
+
