@@ -1,4 +1,4 @@
-/** 文案：zh / en。只有真正出现在事件与工具回执里的字符串在这里。 */
+﻿/** 文案：zh / en。只有真正出现在事件与工具回执里的字符串在这里。 */
 
 const zh = {
   scheduleHeader: (md) => `【今日行程 · ${md}】`,
@@ -6,8 +6,12 @@ const zh = {
 
   expTitle: (label, from, to) => `【${label} · ${from}–${to}】`,
   expActivity: (a) => `今天的行程：${a}`,
-  expPlace: (p) => `你现在在：${p}`,
+  expPlace: (p) => `你在：${p}`,
   expPlaceRule: (p) => `- 就在「${p}」这一带写，别去设定里没写过的地方（想添新地方，先写进 \`my-side.md\`）`,
+  expDirection: (d) => `这次注意：${d}`,
+  expDirectionRule: (d) => `- 围着「${d}」写，别写成通用日常`,
+  directions: ['声音', '物件', '身体', '天气', '念头', '远处的动静'],
+  directionPeople: '路人',
   expWorld: (w) => `你这边：${w}`,
   expSeed: (s) => `这次的偶然：${s}`,
   expAsk: '写两三句这个时段发生的事，然后：',
@@ -67,6 +71,10 @@ const en = {
   expActivity: (a) => `Today's plan: ${a}`,
   expPlace: (p) => `You are at: ${p}`,
   expPlaceRule: (p) => `- stay around "${p}"; do not go to places the setting does not mention (to add one, write it into \`my-side.md\` first)`,
+  expDirection: (d) => `Focus on: ${d}`,
+  expDirectionRule: (d) => `- write around "${d}", not a generic day`,
+  directions: ['sound', 'objects', 'your body', 'weather', 'thoughts', 'something in the distance'],
+  directionPeople: 'a passer-by',
   expWorld: (w) => `Your side: ${w}`,
   expSeed: (s) => `The random bit: ${s}`,
   expAsk: 'Write two or three sentences about what happened in this slot, then:',
@@ -123,3 +131,4 @@ export const STRINGS = { zh, en };
 export function stringsFor(locale) {
   return locale === 'en' ? STRINGS.en : STRINGS.zh;
 }
+
