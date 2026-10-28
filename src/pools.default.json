@@ -1,0 +1,59 @@
+{
+  "slots": [
+    {
+      "key": "morning",
+      "label": "早晨",
+      "label_en": "Morning",
+      "from": "07:00",
+      "to": "11:00",
+      "options": ["发呆", "看书", "听歌", "收拾一下"],
+      "options_en": ["spacing out", "reading", "listening to music", "tidying up"],
+      "seeds": ["窗外有鸟叫", "楼下有人搬东西", "隔壁的闹钟响了", "阳光照到桌角"],
+      "seeds_en": ["birds outside the window", "someone moving things downstairs", "the neighbour's alarm going off", "sunlight on the desk corner"]
+    },
+    {
+      "key": "noon",
+      "label": "中午",
+      "label_en": "Noon",
+      "from": "11:00",
+      "to": "14:00",
+      "options": ["吃饭", "午睡", "听歌", "整理照片"],
+      "options_en": ["eating", "a nap", "listening to music", "sorting photos"],
+      "seeds": ["隔壁在做饭", "有人按错门铃", "突然下雨", "手机弹出一条旧消息"],
+      "seeds_en": ["the neighbour cooking", "someone ringing the wrong doorbell", "rain starting out of nowhere", "an old message popping up"]
+    },
+    {
+      "key": "afternoon",
+      "label": "下午",
+      "label_en": "Afternoon",
+      "from": "14:00",
+      "to": "18:00",
+      "options": ["看书", "写点东西", "出门走走", "看视频"],
+      "options_en": ["reading", "writing something", "a short walk", "watching videos"],
+      "seeds": ["窗外有只鸟撞了玻璃", "楼下在装修", "阳光移到了桌边", "有人敲门走错了"],
+      "seeds_en": ["a bird hitting the window", "renovation downstairs", "the sun moving across the desk", "someone knocking at the wrong door"]
+    },
+    {
+      "key": "evening",
+      "label": "晚上",
+      "label_en": "Evening",
+      "from": "18:00",
+      "to": "22:00",
+      "options": ["聊天", "做饭", "写日记", "发呆"],
+      "options_en": ["chatting", "cooking", "writing a diary", "spacing out"],
+      "seeds": ["楼下有小孩在跑", "隔壁电视声很大", "风把窗帘吹起来", "收到一条群消息"],
+      "seeds_en": ["kids running downstairs", "the neighbour's TV turned up", "the wind lifting the curtain", "a group chat message"]
+    },
+    {
+      "key": "night",
+      "label": "深夜",
+      "label_en": "Late night",
+      "from": "22:00",
+      "to": "01:00",
+      "options": ["准备睡了", "刷手机", "想事情", "看窗外"],
+      "options_en": ["getting ready to sleep", "scrolling on the phone", "thinking things over", "looking out of the window"],
+      "seeds": ["整条街安静下来", "远处有车开过", "楼下便利店还亮着", "窗上起了雾"],
+      "seeds_en": ["the whole street going quiet", "a car passing in the distance", "the convenience store still lit", "the window fogging up"]
+    }
+  ]
+}
